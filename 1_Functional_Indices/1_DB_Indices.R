@@ -26,7 +26,6 @@ traits.all <- DB_trait_raw %>%
   select(scientificName, med_bodysize, med_legratio, nest_guild,
          necrophagus, rotting_fruit, rotting_fungi, activity) %>%
   mutate(activity = as.factor(activity), nest_guild = as.factor(nest_guild)) %>% 
-  filter(scientificName %in% rownames(DB_Ab_mat)) %>%
   column_to_rownames(var = "scientificName") 
 
 Trait_Descr <- data.frame(trait_name = c("med_bodysize", "med_legratio", "nest_guild",
@@ -97,8 +96,8 @@ length(unique(DB_filter$species))
 length(unique(DB_filter$point))
 
 ## Make wide form again
-DB_Ab_mat <- DB_filter %>% select(species, point, abundance) %>% 
-  pivot_wider(values_from = abundance, names_from = point) %>% 
+DB_Ab_mat <- DB_filter %>% select(species, point, presence) %>% 
+  pivot_wider(values_from = presence, names_from = point) %>% 
   column_to_rownames(var = "species")  %>% as.matrix()
 
 ## Transpose the matrix
@@ -107,15 +106,63 @@ DB_Ab_t <- t(DB_Ab_mat)
 rowSums(DB_Ab_t) %>% as.data.frame() %>% summarise(min(.))
 
 ## Functional alpha diversity indices in a multidimensional space
-test <- alpha.fd.multidim(sp_faxes_coord = coord_DB_2D,
+test <- alpha.fd.multidim(sp_faxes_coord = coord_DB_3D,
                           asb_sp_w = DB_Ab_t,
                           ind_vect = c("fric"),
                           scaling = TRUE, check_input = TRUE, details_returned = TRUE)
 
 
-#### Checking ####
+#### Standardised FRic ####
+iter <- 400
+
+## Make an empty object to store the data in
+Storage <- data.frame(matrix(NA, nrow = 0, ncol = 0))
+
+## For loop to get simulated expected communities.
+for (i in 1:iter) {
+  ## Prints an update to the console with each iteration
+  cat(i, " out of ", iter, " simulated communities ", " (",i/iter*100,"%)\n", sep = "")
+  
+  ## Randomizes the species order of the occurence matrix so you get random
+  ## communities from each country
+  random_matrix <- picante::randomizeMatrix(DB_Ab_t, null.model = "richness")
+
+  ## Calc fd
+  expected_fd <- alpha.fd.multidim(
+    sp_faxes_coord   = coord_DB_3D,
+    asb_sp_w         = random_matrix,
+    ind_vect         = c("fric"),
+    scaling          = TRUE, verbose = FALSE,
+    check_input      = TRUE,
+    details_returned = TRUE)
+  
+  ## tidying - add country column (exporter/importer/year etc) and add a collum
+  ## that stores the simulation number
+  metrics_iter <- expected_fd$functional_diversity_indices %>% 
+    rownames_to_column(var = "point") %>% mutate(sim = i)
+  
+  ## save to storage
+  Storage <- rbind(Storage, metrics_iter)
+  
+  ## issue that some combinations of species introduce coplanearity in the 
+  ## geometry::convhull() function called internally by mfd helper functions.
+  ## therefore iterate across communities until we have 250 sets of 
+  ## communities with no coplanar incidences. 
+  if (Storage %>% 
+           group_by(sim) %>% filter(!is.na(fric)) %>% tally() %>%
+           filter(n == 167) %>% nrow() == 250) break
+}
+
+## Summarise the simulated comms
+expected_sum <- Storage %>% group_by(sim) %>% filter(all(!is.na(fric))) %>% 
+  group_by(point) %>% 
+  summarise(ave_expected = mean(fric), sd_expected = sd(fric))
+
 FRic_DB_Points_NA <-  test$functional_diversity_indices %>% as.data.frame() %>% 
-  rownames_to_column(var = "point")
+  rownames_to_column(var = "point") %>% left_join(expected_sum, by = "point") %>%
+  mutate(SES.fric = (fric - ave_expected)/sd_expected)
+
+#### Checking ####
 
 ## Add the elevation data
 Point_elev_info <- Point_info_raw %>% 
@@ -124,7 +171,7 @@ Point_elev_info <- Point_info_raw %>%
 FRic_DB_Points_elev <- left_join(FRic_DB_Points_NA, Point_elev_info)
 
 #### PLOTTING ####
-ggplot(FRic_DB_Points_elev, aes(elev_ALOS_all_points, fric, colour = habitat)) + 
+ggplot(FRic_DB_Points_elev, aes(elev_ALOS_all_points, SES.fric, colour = habitat)) + 
   geom_point() + geom_smooth()
 
 #### OUTPUTS ####
@@ -148,8 +195,8 @@ length(unique(DB_filter$species)) ## 107
 length(unique(DB_filter$point)) ## 280
 
 ## Make long form again
-DB_Ab_mat_FOther <- DB_filter %>% select(species, point, abundance) %>% 
-  pivot_wider(values_from = abundance, names_from = point) %>% 
+DB_Ab_mat_FOther <- DB_filter %>% select(species, point, presence) %>% 
+  pivot_wider(values_from = presence, names_from = point) %>% 
   column_to_rownames(var = "species")  %>% as.matrix()
 
 ## Transpose the matrix
