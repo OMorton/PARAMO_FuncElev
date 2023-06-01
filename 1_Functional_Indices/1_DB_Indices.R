@@ -212,9 +212,55 @@ test <- alpha.fd.multidim(sp_faxes_coord = coord_DB_3D,
                           scaling = TRUE, check_input = TRUE, details_returned = TRUE)
 
 
-#### Checking ####
+#### Standardized FMulti FSpe FOri FDis ####
+iter <- 250
+
+## Make an empty object to store the data in
+Storage <- data.frame(matrix(NA, nrow = 0, ncol = 0))
+
+## For loop to get simulated expected communities.
+for (i in 1:iter) {
+  ## Prints an update to the console with each iteration
+  cat(i, " out of ", iter, " simulated communities ", " (",i/iter*100,"%)\n", sep = "")
+  
+  ## Randomizes the species order of the occurence matrix so you get random
+  ## communities from each country
+  random_matrix <- picante::randomizeMatrix(DB_Ab_t_FOther, null.model = "richness")
+  
+  ## Calc fd
+  expected_fd <- alpha.fd.multidim(
+    sp_faxes_coord   = coord_DB_3D,
+    asb_sp_w         = random_matrix,
+    ind_vect         = c("fdis", "fori", "fspe"),
+    scaling          = TRUE, verbose = FALSE,
+    check_input      = TRUE,
+    details_returned = TRUE)
+  
+  ## tidying - add country column (exporter/importer/year etc) and add a collum
+  ## that stores the simulation number
+  metrics_iter <- expected_fd$functional_diversity_indices %>% 
+    rownames_to_column(var = "point") %>% mutate(sim = i)
+  
+  ## save to storage
+  Storage <- rbind(Storage, metrics_iter)
+  
+}
+
+## Summarise the simulated comms
+expected_sum_multi <- Storage %>% group_by(sim) %>% filter(all(!is.na(fdis))) %>% 
+  group_by(point) %>% 
+  summarise(ave_expected_fdis = mean(fdis), sd_expected_fdis = sd(fdis),
+            ave_expected_fori = mean(fori), sd_expected_fori = sd(fori),
+            ave_expected_fspe = mean(fspe), sd_expected_fspe = sd(fspe))
+
 FMulti_DB_Points_NA <-  test$functional_diversity_indices %>% as.data.frame() %>% 
-  rownames_to_column(var = "point")
+  rownames_to_column(var = "point") %>% left_join(expected_sum_multi, by = "point") %>%
+  mutate(SES.fdis = (fdis - ave_expected_fdis)/sd_expected_fdis,
+         SES.fori = (fori - ave_expected_fori)/sd_expected_fori,
+         SES.fspe = (fspe - ave_expected_fspe)/sd_expected_fspe,)
+
+
+#### Checking ####
 
 ## Add the elevation data
 Point_elev_info <- Point_info_raw %>% 
