@@ -39,6 +39,10 @@ FOri_fit <- add_epred_draws(FOriGAM, newdata = new_multi_dat) %>%
   group_by(habitat, elev_z) %>% median_hdci(.epred, .width = .9) %>% 
   mutate(elev = elev_z*sd(FRic_all$ele_jaxa) + mean(FRic_all$ele_jaxa))
 
+FSpe_fit <- add_epred_draws(FSpeGAM, newdata = new_multi_dat) %>% 
+  group_by(habitat, elev_z) %>% median_hdci(.epred, .width = .9) %>% 
+  mutate(elev = elev_z*sd(FRic_all$ele_jaxa) + mean(FRic_all$ele_jaxa))
+
 ggplot(FRic1_fit, aes(elev, .epred, colour = habitat)) + 
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
@@ -60,7 +64,14 @@ ggplot(FOri_fit, aes(elev, .epred, colour = habitat)) +
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_point(data = FMulti_all, aes(ele_jaxa, fori)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(y = "SES.FRic", x = "Elevation") +
+  scale_colour_manual(values = c("olivedrab4", "tan3")) +
+  theme_minimal(base_size = 14)
+
+ggplot(FSpe_fit, aes(elev, .epred, colour = habitat)) + 
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
+  geom_point(data = FMulti_all, aes(ele_jaxa, fspe)) +
   labs(y = "SES.FRic", x = "Elevation") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
   theme_minimal(base_size = 14)
@@ -78,6 +89,10 @@ diff_sum_sesfric <- f_deriv(data = new_dat, model = SES.fricGAM,
 diff_sum_fori <- f_deriv(data = new_multi_dat, model = FOriGAM,
                             elev_raw = FMulti_all$ele_jaxa,
                             eps = 1e-4, summary = TRUE)
+
+diff_sum_fspe <- f_deriv(data = new_multi_dat, model = FSpeGAM,
+                         elev_raw = FMulti_all$ele_jaxa,
+                         eps = 1e-4, summary = TRUE)
 
 ggplot(diff_sum, aes(elev, diff, colour = habitat)) + 
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
@@ -103,11 +118,20 @@ ggplot(diff_sum_fori, aes(elev, diff, colour = habitat)) +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
   theme_minimal(base_size = 14)
 
+ggplot(diff_sum_fspe, aes(elev, diff, colour = habitat)) + 
+  geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
+  geom_line(size = 1) +
+  geom_hline(yintercept = 0,  linetype = "dashed") +
+  ylab("FRic smooth slope") +
+  scale_colour_manual(values = c("olivedrab4", "tan3")) +
+  theme_minimal(base_size = 14)
+
 #### Contrasts ####
 
 fric_contr <- p_contrasts(fitting_data = FRic_all, model = FRicGAM)
 sesfric_contr <- p_contrasts(fitting_data = FRic_all, model = SES.fricGAM)
 fori_contr <- p_contrasts(fitting_data = FMulti_all, model = FOriGAM)
+fspe_contr <- p_contrasts(fitting_data = FMulti_all, model = FSpeGAM)
 
 ggplot(fric_contr, aes(elev, Contr)) +
   geom_point(size = 2) +
@@ -124,6 +148,13 @@ ggplot(sesfric_contr, aes(elev, Contr)) +
   theme_bw(base_size = 14)
 
 ggplot(fori_contr, aes(elev, Contr)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =1) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ylab("Difference in FRic") + xlab("Altitude") +
+  theme_bw(base_size = 14)
+
+ggplot(fspe_contr, aes(elev, Contr)) +
   geom_point(size = 2) +
   geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =1) +
   geom_hline(yintercept = 0, linetype = "dashed") +
