@@ -28,6 +28,9 @@ Landscape_metrics <- read.csv("Data/Point_info/ECpts_landscapemetricsMASTER_v2.c
 FRic_all <- left_join(FRic_all_raw, Landscape_metrics)
 FMulti_all <- left_join(FMulti_all_raw, Landscape_metrics)
 
+write.csv(FRic_all, "Outputs/Summaries/DB/DB_FRic_fitting_data.csv")
+write.csv(FMulti_all, "Outputs/Summaries/DB/DB_FMulti_fitting_data.csv")
+
 #### Preparation ####
 ## Standardize
 FRic_all <- FRic_all %>% filter(habitat != "Paramo") %>% 
