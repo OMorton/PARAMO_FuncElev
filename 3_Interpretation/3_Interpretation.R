@@ -8,11 +8,19 @@ library(brms)
 library(tidybayes)
 library(bayestestR)
 library(ggpubr)
+library(tidyverse)
 
 source("Functions.R")
 
+#### Data ####
 FRicGAM <- readRDS("Models/DB/FRicGAMwz.rds")
 SES.fricGAM <- readRDS("Models/DB/SESFRicGAMwz.rds")
+FOriGAM <- readRDS("Models/DB/FOriGAMwz.rds")
+FDisGAM <- readRDS("Models/DB/FDisGAMwz.rds")
+FSpeGAM <- readRDS("Models/DB/FSpeGAMwz.rds")
+
+FRic_all<- data.table::fread("Outputs/Summaries/DB/DB_FRic_fitting_data.csv")
+FMulti_all <- data.table::fread("Outputs/Summaries/DB/DB_FMulti_fitting_data.csv")
 
 #### First summary plot ####
 ## Simulate data range
@@ -48,46 +56,51 @@ FDis_fit <- add_epred_draws(FDisGAM, newdata = new_multi_dat) %>%
   mutate(elev = elev_z*sd(FMulti_all$ele_jaxa) + mean(FMulti_all$ele_jaxa))
 
 ## plot
-ggplot(FRic1_fit, aes(elev, .epred, colour = habitat)) + 
+fric_sum_plot <- ggplot(FRic1_fit, aes(elev, .epred, colour = habitat)) + 
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_point(data = FRic_all, aes(ele_jaxa, fric)) +
   labs(y = "FRic", x = "Elevation") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
-ggplot(SESFRic1_fit, aes(elev, .epred, colour = habitat)) + 
+sesfric_sum_plot <- ggplot(SESFRic1_fit, aes(elev, .epred, colour = habitat)) + 
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_point(data = FRic_all, aes(ele_jaxa, SES.fric)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   labs(y = "SES.FRic", x = "Elevation") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
-ggplot(FOri_fit, aes(elev, .epred, colour = habitat)) + 
+fori_sum_plot <- ggplot(FOri_fit, aes(elev, .epred, colour = habitat)) + 
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_point(data = FMulti_all, aes(ele_jaxa, fori)) +
   labs(y = "FOri", x = "Elevation") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
-ggplot(FSpe_fit, aes(elev, .epred, colour = habitat)) + 
+fspe_sum_plot <- ggplot(FSpe_fit, aes(elev, .epred, colour = habitat)) + 
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_point(data = FMulti_all, aes(ele_jaxa, fspe)) +
   labs(y = "FSpe", x = "Elevation") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
-ggplot(FDis_fit, aes(elev, .epred, colour = habitat)) + 
+fdis_sum_plot <- ggplot(FDis_fit, aes(elev, .epred, colour = habitat)) + 
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_point(data = FMulti_all, aes(ele_jaxa, fdis)) +
   labs(y = "FDis", x = "Elevation") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
 #### First derivatives ####
 
@@ -111,45 +124,55 @@ diff_sum_fdis <- f_deriv(data = new_multi_dat, model = FDisGAM,
                          elev_raw = FMulti_all$ele_jaxa,
                          eps = 1e-4, summary = TRUE)
 
-ggplot(diff_sum, aes(elev, diff, colour = habitat)) + 
+fric_smooth_plot <- ggplot(diff_sum_fric, aes(elev, diff, colour = habitat)) + 
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_line(size = 1) +
   geom_hline(yintercept = 0,  linetype = "dashed") +
-  ylab("FRic smooth slope") +
+  ylab("FRic delta (p/100m)") +
+  xlab("Elevation (m)") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
-ggplot(diff_sum_sesfric, aes(elev, diff, colour = habitat)) + 
+sesfric_smooth_plot <- ggplot(diff_sum_sesfric, aes(elev, diff, colour = habitat)) + 
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_line(size = 1) +
   geom_hline(yintercept = 0,  linetype = "dashed") +
-  ylab("SES.FRic smooth slope") +
+  ylab("SES.FRic delta (p/100m)") +
+  xlab("Elevation (m)") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
-ggplot(diff_sum_fori, aes(elev, diff, colour = habitat)) + 
+fori_smooth_plot <- ggplot(diff_sum_fori, aes(elev, diff, colour = habitat)) + 
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_line(size = 1) +
   geom_hline(yintercept = 0,  linetype = "dashed") +
-  ylab("FOri smooth slope") +
+  ylab("FOri delta (p/100m)") +
+  xlab("Elevation (m)") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
-ggplot(diff_sum_fspe, aes(elev, diff, colour = habitat)) + 
+fspe_smooth_plot <- ggplot(diff_sum_fspe, aes(elev, diff, colour = habitat)) + 
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_line(size = 1) +
   geom_hline(yintercept = 0,  linetype = "dashed") +
-  ylab("FSpe smooth slope") +
+  ylab("FSpe delta (p/100m)") +
+  xlab("Elevation (m)") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
-ggplot(diff_sum_fdis, aes(elev, diff, colour = habitat)) + 
+fdis_smooth_plot <- ggplot(diff_sum_fdis, aes(elev, diff, colour = habitat)) + 
   geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = NA, linetype = "dashed") +
   geom_line(size = 1) +
   geom_hline(yintercept = 0,  linetype = "dashed") +
-  ylab("FDis smooth slope") +
+  ylab("FDis delta (p/100m)") +
+  xlab("Elevation (m)") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none")
 
 #### Contrasts ####
 
@@ -159,37 +182,42 @@ fori_contr <- p_contrasts(fitting_data = FMulti_all, model = FOriGAM)
 fspe_contr <- p_contrasts(fitting_data = FMulti_all, model = FSpeGAM)
 fdis_contr <- p_contrasts(fitting_data = FMulti_all, model = FDisGAM)
 
-ggplot(fric_contr, aes(elev, Contr)) +
-  geom_point(size = 2) +
-  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =1) +
+fric_contr_plot <- ggplot(fric_contr, aes(elev, Contr)) +
+  geom_point(size = 1) +
+  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =.5) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  ylab("Difference in FRic") + xlab("Altitude") +
-  theme_bw(base_size = 14)
+  ylab("Difference in FRic") + 
+  xlab("Elevation (m)") +
+  theme_minimal(base_size = 10)
 
-ggplot(sesfric_contr, aes(elev, Contr)) +
-  geom_point(size = 2) +
-  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =1) +
+sesfric_contr_plot <- ggplot(sesfric_contr, aes(elev, Contr)) +
+  geom_point(size = 1) +
+  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =.5) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  ylab("Difference in SES.FRic") + xlab("Altitude") +
-  theme_bw(base_size = 14)
+  ylab("Difference in SES.FRic") +
+  xlab("Elevation (m)") +
+  theme_minimal(base_size = 10)
 
-ggplot(fori_contr, aes(elev, Contr)) +
-  geom_point(size = 2) +
-  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =1) +
+fori_contr_plot <- ggplot(fori_contr, aes(elev, Contr)) +
+  geom_point(size = 1) +
+  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =.5) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  ylab("Difference in FOri") + xlab("Altitude") +
-  theme_bw(base_size = 14)
+  ylab("Difference in FOri") +
+  xlab("Elevation (m)") +
+  theme_minimal(base_size = 10)
 
-ggplot(fspe_contr, aes(elev, Contr)) +
-  geom_point(size = 2) +
-  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =1) +
+fspe_contr_plot <- ggplot(fspe_contr, aes(elev, Contr)) +
+  geom_point(size = 1) +
+  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =.5) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  ylab("Difference in FSpe") + xlab("Altitude") +
-  theme_bw(base_size = 14)
+  ylab("Difference in FSpe") + 
+  xlab("Elevation (m)") +
+  theme_minimal(base_size = 10)
 
-ggplot(fdis_contr, aes(elev, Contr)) +
-  geom_point(size = 2) +
-  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =1) +
+fdis_contr_plot <- ggplot(fdis_contr, aes(elev, Contr)) +
+  geom_point(size = 1) +
+  geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size =.5) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  ylab("Difference in FDis") + xlab("Altitude") +
-  theme_bw(base_size = 14)
+  ylab("Difference in FDis") + 
+  xlab("Elevation (m)") +
+  theme_minimal(base_size = 10)
