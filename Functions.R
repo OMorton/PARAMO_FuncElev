@@ -54,7 +54,9 @@ f_deriv <- function(data = data , model = model,
   
   ## Calcualte the difference and divide by epsilon - this is analgous to the dx/dt 
   diff_sum <- diff %>% mutate(diff = (second - first)/eps) %>% 
-    mutate(elev = elev_z*sd(elev_raw) + mean(elev_raw))
+    mutate(elev = elev_z*sd(elev_raw) + mean(elev_raw),
+           ## put on the per 100 metre scale rather than the sd scale
+           diff = (diff/sd(elev_raw))*100 )
   
   if( summary == TRUE) {
     diff_sum <- diff_sum %>% group_by(habitat, elev_z, elev) %>% 
@@ -69,10 +71,10 @@ f_deriv <- function(data = data , model = model,
 ## fitting_data - data used to fit the model.
 ## model - fitted model
 
-p_contrasts <- function(fitting_data = FRic_all, model = FRicGAM) {
+p_contrasts <- function(fitting_data = FMulti_all, model = FSpeGAM) {
 
   ## Set up the raw data
-  new_dat <- data.frame(elev = seq(from = 1000, to = 2500, by = 50)) %>% 
+  new_dat <- data.frame(elev = seq(from = 1000, to = 3000, by = 50)) %>% 
     mutate(elev_z = (elev - mean(fitting_data$ele_jaxa)) / sd(fitting_data$ele_jaxa),
            Cluster_dummy = 0, cluster = "cluster_MOF_1")
 
