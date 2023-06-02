@@ -139,3 +139,63 @@ FOriGAM <- brm(fori ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
                    chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 model_check(data = FMulti_all, model = FOriGAM)
+
+#### FSpe Model fit ####
+## basic model of focal variables and samplng structure
+FSpeGAM <- brm(fspe ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
+                 s(cluster, bs="re", by= Cluster_dummy),
+               family = Beta(),
+               data = FMulti_all,
+               sample_prior = TRUE,  prior = c(
+                 prior(normal(0,1), "b"),
+                 prior(normal(0,1), "Intercept")),
+               control = list(adapt_delta = .95),
+               file = "Models/DB/FSpeGAM.rds",
+               chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
+
+## more complete model incorporating that increasing wood in pasture sites 
+## may covary with species composition
+FSpeGAM <- brm(fspe ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
+                 Wood_Veg_z:habitat + Wood_Veg_z +
+                 s(cluster, bs="re", by= Cluster_dummy),
+               family = Beta(),
+               data = FMulti_all,
+               sample_prior = TRUE,  prior = c(
+                 prior(normal(0,1), "b"),
+                 prior(normal(0,1), "Intercept")),
+               control = list(adapt_delta = .95),
+               file = "Models/DB/FSpeGAMwz.rds",
+               chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
+
+model_check(data = FMulti_all, model = FSpeGAM)
+
+#### FDis Model fit ####
+## basic model of focal variables and samplng structure
+FDisGAM <- brm(bf(fdis ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
+                 s(cluster, bs="re", by= Cluster_dummy),
+                 zi ~ 1),
+               family = zero_inflated_beta(),
+               data = FMulti_all,
+               sample_prior = TRUE,  prior = c(
+                 prior(normal(0,1), "b"),
+                 prior(normal(0,1), "Intercept")),
+               control = list(adapt_delta = .95),
+               file = "Models/DB/FDisGAM.rds",
+               chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
+
+## more complete model incorporating that increasing wood in pasture sites 
+## may covary with species composition.
+FDisGAM <- brm(bf(fdis ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
+                 Wood_Veg_z:habitat + Wood_Veg_z +
+                 s(cluster, bs="re", by= Cluster_dummy),
+                 zi ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7)),
+               family = zero_inflated_beta(),
+               data = FMulti_all,
+               sample_prior = TRUE,  prior = c(
+                 prior(normal(0,1), "b"),
+                 prior(normal(0,1), "Intercept")),
+               control = list(adapt_delta = .95),
+               file = "Models/DB/FDisGAMwz.rds",
+               chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
+
+model_check(data = FMulti_all, model = FDisGAM)
