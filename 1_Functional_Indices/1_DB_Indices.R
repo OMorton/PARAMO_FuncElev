@@ -22,13 +22,15 @@ cor(DB_trait_raw[,2:4][complete.cases(DB_trait_raw[,2:4]), ])
 
 # Create dataframe of relevant traits
 traits.all <- DB_trait_raw %>%
+  mutate(med_bodysize_z = (med_bodysize - mean(med_bodysize))/sd(med_bodysize),
+         med_legratio_z = (med_legratio - mean(med_legratio))/sd(med_legratio)) %>%
   # Select trait columns 
-  select(scientificName, med_bodysize, med_legratio, nest_guild,
+  select(scientificName, med_bodysize_z, med_legratio_z, nest_guild,
          necrophagus, rotting_fruit, rotting_fungi, activity) %>%
   mutate(activity = as.factor(activity), nest_guild = as.factor(nest_guild)) %>% 
   column_to_rownames(var = "scientificName") 
 
-Trait_Descr <- data.frame(trait_name = c("med_bodysize", "med_legratio", "nest_guild",
+Trait_Descr <- data.frame(trait_name = c("med_bodysize_z", "med_legratio_z", "nest_guild",
                                          "necrophagus", "rotting_fruit", "rotting_fungi",
                                          "activity"), 
                           trait_type = c("Q", "Q", "N",
