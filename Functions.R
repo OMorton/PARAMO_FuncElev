@@ -56,10 +56,12 @@ f_deriv <- function(data = data , model = model,
   diff_sum <- diff %>% mutate(diff = (second - first)/eps) %>% 
     mutate(elev = elev_z*sd(elev_raw) + mean(elev_raw),
            ## put on the per 100 metre scale rather than the sd scale
-           diff = (diff/sd(elev_raw))*100 )
+           diff = (diff/sd(elev_raw))*100 ) %>% 
+    group_by(elev, habitat) %>%
+    mutate(pd = sum(sign(diff) == sign(median(diff)))/max(.draw))
   
   if( summary == TRUE) {
-    diff_sum <- diff_sum %>% group_by(habitat, elev_z, elev) %>% 
+    diff_sum <- diff_sum %>% group_by(habitat, elev_z, elev, pd) %>% 
       median_hdci(diff, .width = .9)
   }
   return(diff_sum)
