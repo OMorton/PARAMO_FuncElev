@@ -6,11 +6,14 @@
 
 ## Set up packages for working from home
 options(scipen=999)
-.libPaths("C:/Packages") 
+.libPaths("C:/Packages")
 
+devtools::unload("Rcpp")
 library(brms)
 library(tidyverse)
 library(tidybayes)
+
+source("Functions.R")
 
 #### Data ####
 ## FRic is scaled by the convhull of the complete species pool so is bounded by
@@ -28,9 +31,6 @@ Landscape_metrics <- read.csv("Data/Point_info/ECpts_landscapemetricsMASTER_v2.c
 FRic_all <- left_join(FRic_all_raw, Landscape_metrics)
 FMulti_all <- left_join(FMulti_all_raw, Landscape_metrics)
 
-write.csv(FRic_all, "Outputs/Summaries/DB/DB_FRic_fitting_data.csv")
-write.csv(FMulti_all, "Outputs/Summaries/DB/DB_FMulti_fitting_data.csv")
-
 #### Preparation ####
 ## Standardize
 FRic_all <- FRic_all %>% filter(habitat != "Paramo") %>% 
@@ -45,12 +45,18 @@ FMulti_all <- FMulti_all %>% filter(habitat != "Paramo") %>%
          Wood_Veg_z = (woodyveg_index - mean(woodyveg_index)) / sd(woodyveg_index),
          Cluster_dummy = 1)
 
+cor(select(FRic_all, For_Dist_z, elev_z, Wood_Veg_z))
+cor(select(FMulti_all, For_Dist_z, elev_z, Wood_Veg_z))
+
 ggplot(FRic_all, aes(elev_z, fric, colour = habitat)) + geom_point() +
   geom_smooth()
 ggplot(FRic_all, aes(Wood_Veg_z, fric, colour = habitat)) + geom_point() +
   geom_smooth()
 ggplot(FRic_all, aes(For_Dist_z, fric, colour = habitat)) + geom_point() +
   geom_smooth()
+
+write.csv(FRic_all, "Outputs/Summaries/DB/DB_FRic_fitting_data.csv")
+write.csv(FMulti_all, "Outputs/Summaries/DB/DB_FMulti_fitting_data.csv")
 
 #### FRic Model fit ####
 
@@ -63,13 +69,14 @@ FRicGAM <- brm(fric ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
                  prior(normal(0,1), "b"),
                  prior(normal(0,1), "Intercept")),
                control = list(adapt_delta = .95),
-               file = "Models/DB/FRicGAM.rds",
+               file = "Models/DB/FRicGAM_st.rds",
                chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 ## more complete model incorporating that increasing wood in pasture sites 
 ## may covary with species composition
 FRicGAM <- brm(fric ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
                  Wood_Veg_z:habitat + Wood_Veg_z +
+                 For_Dist_z:habitat + For_Dist_z +
                  s(cluster, bs="re", by= Cluster_dummy),
                family = Beta(),
                data = FRic_all,
@@ -77,7 +84,7 @@ FRicGAM <- brm(fric ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
                  prior(normal(0,1), "b"),
                  prior(normal(0,1), "Intercept")),
                control = list(adapt_delta = .95),
-               file = "Models/DB/FRicGAMwz.rds",
+               file = "Models/DB/FRicGAMwfz_st.rds",
                chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 model_check(data = FRic_all, model = FRicGAM)
@@ -95,13 +102,14 @@ SES.fricGAM <- brm(SES.fric ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7
                  prior(normal(0,1), "b"),
                  prior(normal(0,1), "Intercept")),
                control = list(adapt_delta = .95),
-               file = "Models/DB/SESFRicGAM.rds",
+               file = "Models/DB/SESFRicGAM_st.rds",
                chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 ## more complete model incorporating that increasing wood in pasture sites 
 ## may covary with species composition
 SES.fricGAM <- brm(SES.fric ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
                  Wood_Veg_z:habitat + Wood_Veg_z +
+                   For_Dist_z:habitat + For_Dist_z +
                  s(cluster, bs="re", by= Cluster_dummy),
                family = gaussian(),
                data = FRic_all,
@@ -109,7 +117,7 @@ SES.fricGAM <- brm(SES.fric ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7
                  prior(normal(0,1), "b"),
                  prior(normal(0,1), "Intercept")),
                control = list(adapt_delta = .95),
-               file = "Models/DB/SESFRicGAMwz.rds",
+               file = "Models/DB/SESFRicGAMwfz_st.rds",
                chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 model_check(data = FRic_all, model = SES.fricGAM)
@@ -124,13 +132,14 @@ FOriGAM <- brm(fori ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
                      prior(normal(0,1), "b"),
                      prior(normal(0,1), "Intercept")),
                    control = list(adapt_delta = .95),
-                   file = "Models/DB/FOriGAM.rds",
+                   file = "Models/DB/FOriGAM_st.rds",
                    chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 ## more complete model incorporating that increasing wood in pasture sites 
 ## may covary with species composition
 FOriGAM <- brm(fori ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
                      Wood_Veg_z:habitat + Wood_Veg_z +
+                     For_Dist_z:habitat + For_Dist_z +
                      s(cluster, bs="re", by= Cluster_dummy),
                    family = Beta(),
                    data = FMulti_all,
@@ -138,7 +147,7 @@ FOriGAM <- brm(fori ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
                      prior(normal(0,1), "b"),
                      prior(normal(0,1), "Intercept")),
                    control = list(adapt_delta = .95),
-                   file = "Models/DB/FOriGAMwz.rds",
+                   file = "Models/DB/FOriGAMwfz_st.rds",
                    chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 model_check(data = FMulti_all, model = FOriGAM)
@@ -153,13 +162,14 @@ FSpeGAM <- brm(fspe ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
                  prior(normal(0,1), "b"),
                  prior(normal(0,1), "Intercept")),
                control = list(adapt_delta = .95),
-               file = "Models/DB/FSpeGAM.rds",
+               file = "Models/DB/FSpeGAM_st.rds",
                chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 ## more complete model incorporating that increasing wood in pasture sites 
 ## may covary with species composition
 FSpeGAM <- brm(fspe ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
                  Wood_Veg_z:habitat + Wood_Veg_z +
+                 For_Dist_z:habitat + For_Dist_z +
                  s(cluster, bs="re", by= Cluster_dummy),
                family = Beta(),
                data = FMulti_all,
@@ -167,7 +177,7 @@ FSpeGAM <- brm(fspe ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
                  prior(normal(0,1), "b"),
                  prior(normal(0,1), "Intercept")),
                control = list(adapt_delta = .95),
-               file = "Models/DB/FSpeGAMwz.rds",
+               file = "Models/DB/FSpeGAMwfz_st.rds",
                chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 model_check(data = FMulti_all, model = FSpeGAM)
@@ -183,13 +193,14 @@ FDisGAM <- brm(bf(fdis ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
                  prior(normal(0,1), "b"),
                  prior(normal(0,1), "Intercept")),
                control = list(adapt_delta = .95),
-               file = "Models/DB/FDisGAM.rds",
+               file = "Models/DB/FDisGAM_st.rds",
                chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 ## more complete model incorporating that increasing wood in pasture sites 
 ## may covary with species composition.
 FDisGAM <- brm(bf(fdis ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
                  Wood_Veg_z:habitat + Wood_Veg_z +
+                   For_Dist_z:habitat + For_Dist_z +
                  s(cluster, bs="re", by= Cluster_dummy),
                  zi ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7)),
                family = zero_inflated_beta(),
@@ -198,7 +209,8 @@ FDisGAM <- brm(bf(fdis ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
                  prior(normal(0,1), "b"),
                  prior(normal(0,1), "Intercept")),
                control = list(adapt_delta = .95),
-               file = "Models/DB/FDisGAMwz.rds",
+               file = "Models/DB/FDisGAMwfz_st.rds",
                chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)
 
 model_check(data = FMulti_all, model = FDisGAM)
+
