@@ -104,7 +104,7 @@ fspe_sum_plot <- ggplot(FSpe_fit, aes(elev_plot, .prediction, colour = habitat))
   geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size = 1) +
   scale_x_continuous(breaks = c(1000, 1400, 1800, 2200, 2600, 3000, 3400),
                      labels = c(1000, 1400, 1800, 2200, 2600, 3000, 3400)) +
-  labs(y = "FSpe", x = "Elevation") +
+  labs(y = "FSpe", x = "Elevation (m)") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
   theme_minimal(base_size = 12) +
   theme(axis.line.x.bottom = element_line(colour = "black"),
@@ -119,7 +119,7 @@ fdis_sum_plot <- ggplot(FDis_fit, aes(elev_plot, .prediction, colour = habitat))
   geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, size = 1) +
   scale_x_continuous(breaks = c(1000, 1400, 1800, 2200, 2600, 3000, 3400),
                      labels = c(1000, 1400, 1800, 2200, 2600, 3000, 3400)) +
-  labs(y = "FDis", x = "Elevation") +
+  labs(y = "FDis", x = "Elevation (m)") +
   scale_colour_manual(values = c("olivedrab4", "tan3")) +
   theme_minimal(base_size = 12) +
   theme(axis.line.x.bottom = element_line(colour = "black"),
