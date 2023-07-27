@@ -1,6 +1,6 @@
 
 #### Functions ####
-
+library(ggpubr)
 #### Model check ####
 
 ## Simple convenience function to do and present 4 posterior predictive checks.
@@ -24,6 +24,35 @@ model_check <- function(model = model, data = data) {
   return(ch)
 }
 
+#### New data for models ####
+## simple
+get_newdata <- function(fitting_data = data) {
+  
+  constants <- fitting_data %>% group_by(habitat) %>% 
+    reframe(For_Dist_z = median(For_Dist_z),
+            Wood_Veg_z = median(Wood_Veg_z),
+            Cluster_dummy = 0, cluster = "cluster_MOF_1")
+  
+  elev_range <- data.frame(habitat = c("Forest", "Pasture")) %>% group_by(habitat) %>%
+    reframe(elev = seq(from = 800, to = 3600, by = 200)) %>% 
+    mutate(elev_z = (elev - mean(fitting_data$ele_jaxa))/sd(fitting_data$ele_jaxa))
+  
+  min_forest_elev <- min(filter(fitting_data, habitat == "Forest")$ele_jaxa)
+  max_forest_elev <- max(filter(fitting_data, habitat == "Forest")$ele_jaxa)
+  min_pasture_elev <- min(filter(fitting_data, habitat == "Pasture")$ele_jaxa)
+  max_pasture_elev <- max(filter(fitting_data, habitat == "Pasture")$ele_jaxa)
+  
+  elev_trim <- 
+    elev_range %>% filter((habitat == "Forest" & elev >= min_forest_elev &
+                           elev <= max_forest_elev ) | 
+                        (habitat == "Pasture" & elev >= min_pasture_elev &
+                           elev <= max_pasture_elev )
+                          )
+  
+  new_dat <- left_join(constants, elev_trim)
+  
+  return(new_dat)
+}
 #### First derivatives finite differences ####
 
 ## data - Not raw data used to fit the model, a data frame of values to estimate
@@ -46,9 +75,9 @@ f_deriv <- function(data = data , model = model,
   
   ## get predictions
   first_preds <-
-    add_epred_draws(model, newdata = first) %>% ungroup() %>% rename(first = .epred)
+    add_predicted_draws(model, newdata = first) %>% ungroup() %>% rename(first = .prediction)
   second_preds <-
-    add_epred_draws(model, newdata = second) %>% ungroup() %>% select(.epred) %>% rename(second = .epred)
+    add_predicted_draws(model, newdata = second) %>% ungroup() %>% select(.prediction) %>% rename(second = .prediction)
   
   diff <- cbind(first_preds, second_preds)
   
@@ -73,27 +102,26 @@ f_deriv <- function(data = data , model = model,
 ## fitting_data - data used to fit the model.
 ## model - fitted model
 
-p_contrasts <- function(fitting_data = FMulti_all, model = FSpeGAM) {
+p_contrasts <- function(forest_data = forest, pasture_data = pasture, model = FSpeGAM) {
 
-  ## Set up the raw data
-  new_dat <- data.frame(elev = seq(from = 1000, to = 3000, by = 50)) %>% 
-    mutate(elev_z = (elev - mean(fitting_data$ele_jaxa)) / sd(fitting_data$ele_jaxa),
-           Cluster_dummy = 0, cluster = "cluster_MOF_1")
-
-  Forest_fit <- add_epred_draws(model, newdata = 
-                                  mutate(new_dat, habitat = "Forest",
-                                         Wood_Veg_z = mean(filter(fitting_data, habitat == "Forest")$Wood_Veg_z))) %>% 
-    rename("Forest" = ".epred")
-  Pasture_fit <- add_epred_draws(model, newdata = 
-                                   mutate(new_dat, habitat = "Pasture",
-                                          Wood_Veg_z = mean(filter(fitting_data, habitat == "Pasture")$Wood_Veg_z))) %>% 
-    rename("Pasture" = ".epred") %>% ungroup() %>% select(Pasture)
+  min_shared_elev <- max(c(min(forest_data$elev), min(pasture_data$elev)))
+  max_shared_elev <- min(c(max(forest_data$elev), max(pasture_data$elev)))
+  
+  forest_trim <- forest_data %>% filter(elev >= min_shared_elev & elev <= max_shared_elev)
+  pasture_trim <- pasture_data %>% filter(elev >= min_shared_elev & elev <= max_shared_elev)
+  
+  Forest_fit <- add_predicted_draws(model, newdata = forest_trim) %>% 
+    rename("Forest" = ".prediction")
+  
+  Pasture_fit <- add_predicted_draws(model, newdata = pasture_trim) %>% 
+    rename("Pasture" = ".prediction") %>% ungroup() %>% select(Pasture)
   
   ## Do the contrast
   Contr <- cbind(Forest_fit, Pasture_fit) %>% mutate(Contr = Forest - Pasture) %>%
-    group_by(elev) %>% mutate(pd = sum(sign(Contr) == sign(median(Contr)))/max(.draw))
+    group_by(elev) %>% mutate(pd = (sum(sign(Contr) == sign(median(Contr)))/max(.draw))*100)
   
-  Out <- Contr %>% group_by(elev, pd) %>% median_hdci(Contr, .width = .9) 
+  Out <- Contr %>% group_by(elev, pd) %>% median_hdci(Contr, .width = .9) %>%
+    mutate(pd_binary = ifelse(pd >= 97.5, "Yes", "No"))
   
   return(Out)
 }
