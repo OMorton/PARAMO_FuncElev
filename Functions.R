@@ -65,7 +65,7 @@ get_newdata <- function(fitting_data = data) {
 ## summary - logical. Either returns a summary (median and 90% hdci) or the 
 ## raw data.
 
-f_deriv <- function(data = data , model = model, 
+f_deriv <- function(data = data , model = model, prediction = TRUE,
                     elev_raw = focal_raw,
                     eps = 1e-4, summary = TRUE) {
   
@@ -73,11 +73,20 @@ f_deriv <- function(data = data , model = model,
   first <- data
   second <- mutate(data, elev_z = elev_z + eps)
   
+  if (prediction == TRUE) {
   ## get predictions
   first_preds <-
     add_predicted_draws(model, newdata = first) %>% ungroup() %>% rename(first = .prediction)
   second_preds <-
     add_predicted_draws(model, newdata = second) %>% ungroup() %>% select(.prediction) %>% rename(second = .prediction)
+  } else {
+  
+  ## get expectation
+  first_preds <-
+    add_epred_draws(model, newdata = first) %>% ungroup() %>% rename(first = .epred)
+  second_preds <-
+    add_epred_draws(model, newdata = second) %>% ungroup() %>% select(.epred) %>% rename(second = .epred)
+  }
   
   diff <- cbind(first_preds, second_preds)
   
@@ -124,4 +133,49 @@ p_contrasts <- function(forest_data = forest, pasture_data = pasture, model = FS
     mutate(pd_binary = ifelse(pd >= 97.5, "Yes", "No"))
   
   return(Out)
+}
+
+
+#### Bird habitat:elevation summary plot wrapper ####
+plots_fx <- function(x) {
+  
+    ggplot(x, aes(elev_plot, value, color = habitat, group = habitat)) + 
+    geom_point(size = 3, shape = 16) +
+    geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0, linewidth = 1) +
+    scale_color_manual(values = c("olivedrab4", "tan3")) +
+    scale_x_continuous(name = "Elevation (m)",
+                       breaks = c(1000, 1400, 1800, 2200, 2600, 3000, 3400),
+                       labels = c(1000, 1400, 1800, 2200, 2600, 3000, 3400)) +
+    ylab(paste(unique(x$metric))) +
+    theme_minimal(base_size = 12) +
+    theme(axis.line.x.bottom = element_line(colour = "black"),
+          axis.line.y.left = element_line(colour = "black"),
+          axis.ticks = element_line(), legend.position = "none",
+          axis.text.x = element_text(angle = 45, vjust = 0.5))
+}
+
+#### Bird habitat:elevation difference plot wrapper ####
+plots_fx_diff <- function(y) {
+  cordillera_diff_long %>% filter(., metric == y) %>% 
+    ggplot(., aes(elev_ALOS, value)) +
+    stat_summary(fun.data = median_hdci, 
+                 fun.args = c(.width = .9),
+                 geom = "pointrange") +
+    geom_hline(yintercept = 0, linetype = "dashed", size = .75) +
+    scale_x_discrete(name = "Elevation (m)",
+                     breaks = c("1000", "1400", "1800", "2200", "2600", "3000", "3400")) +
+    ylab(paste0("Difference in ", str_replace(y, "_diff", ""))) +
+    theme_minimal(base_size = 12) +
+    theme(axis.line.x.bottom = element_line(colour = "black"),
+          axis.line.y.left = element_line(colour = "black"),
+          axis.ticks = element_line(), axis.text.x = element_text(angle = 45, vjust = 0.5))
+}
+#### Bird metric summary ####
+bird_sum <- function(x) {
+  x1 <- x %>% group_by(elev_ALOS, point_type, habitat, metric) %>%
+    median_hdci(value, .width = .9, na.rm = TRUE)  %>%
+    mutate(elev_plot = ifelse(habitat == "Forest", 
+                              as.numeric(as.character(elev_ALOS)) - 15, 
+                              as.numeric(as.character(elev_ALOS)) + 15))
+  return(x1)
 }

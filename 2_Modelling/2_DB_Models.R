@@ -6,9 +6,9 @@
 
 ## Set up packages for working from home
 options(scipen=999)
-.libPaths("C:/Packages")
+#.libPaths("C:/Packages")
 
-devtools::unload("Rcpp")
+#devtools::unload("Rcpp")
 library(brms)
 library(tidyverse)
 library(tidybayes)
@@ -19,7 +19,7 @@ source("Functions.R")
 ## FRic is scaled by the convhull of the complete species pool so is bounded by
 ## 1 and 0.
 FRic_all_raw <- read.csv("Outputs/Summaries/DB/DB_FRic_Point_all_NEW.csv") %>%
-  select(point, fric, SES.fric)
+  select(point, sp_richn, fric, SES.fric)
 
 FMulti_all_raw <- read.csv("Outputs/Summaries/DB/DB_Multi_Point_all_NEW.csv") %>%
   select(point, fdis, fori, fspe, SES.fdis, SES.fori, SES.fspe)
@@ -214,3 +214,18 @@ FDisGAM <- brm(bf(fdis ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) +
 
 model_check(data = FMulti_all, model = FDisGAM)
 
+
+#### SOM SR MOD ####
+
+SRGAM <- brm(sp_richn ~ habitat + s(elev_z, by = habitat, bs = "tp", k = 7) + 
+                    Wood_Veg_z:habitat + Wood_Veg_z +
+                    For_Dist_z:habitat + For_Dist_z +
+                    s(cluster, bs="re", by= Cluster_dummy),
+               family = poisson(),
+               data = FRic_all,
+               sample_prior = TRUE,  prior = c(
+                 prior(normal(0,1), "b"),
+                 prior(normal(0,1), "Intercept")),
+               control = list(adapt_delta = .95),
+               file = "Models/DB/SRGAMwfz_st.rds",
+               chains = 4, iter = 600, thin = 1, cores = 4, warmup = 300)

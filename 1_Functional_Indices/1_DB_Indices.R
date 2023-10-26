@@ -9,7 +9,7 @@
 ## 2 - compute and illustrate multidimensional functional diversity indices for all bands.
 
 ## Set up packages for working from home
-.libPaths("C:/Packages") 
+#.libPaths("C:/Packages") 
 library(tidyverse)
 library(mFD)
 
